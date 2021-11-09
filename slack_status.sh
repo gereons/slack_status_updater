@@ -1,5 +1,6 @@
 #!/bin/bash
 CONFIG_FILE="$HOME/.slack_status.conf"
+SAVE_FILE="$HOME/.slack_status.saved"
 
 # Colors
 red=$(tput setaf 1)
@@ -70,6 +71,30 @@ if [[ $PRESET == "none" ]]; then
     EMOJI=""
     TEXT=""
     echo "Resetting slack status to blank"
+elif [[ $PRESET == "save" ]]; then
+    RESPONSE=$(curl -s --data token="$TOKEN" https://slack.com/api/users.profile.get)
+
+    STATUS_EMOJI=$(echo $RESPONSE | jq -r .profile.status_emoji)    
+    STATUS_TEXT=$(echo $RESPONSE | jq -r .profile.status_text)
+    cat >$SAVE_FILE <<EOF
+STATUS_EMOJI="$STATUS_EMOJI"
+STATUS_TEXT="$STATUS_TEXT"
+EOF
+
+    echo "Saved current status to $SAVE_FILE"
+
+    exit 0
+elif [[ $PRESET == "restore" ]]; then
+    if [ -r $SAVE_FILE ]; then
+        . $SAVE_FILE
+        EMOJI=$STATUS_EMOJI
+        TEXT=$STATUS_TEXT
+        rm $SAVE_FILE
+        echo "Updating status to: ${yellow}$EMOJI ${green}$TEXT${reset}"
+    else
+        echo "${red}$SAVE_FILE not found!${reset}"
+        exit 1
+    fi
 else
     eval "EMOJI=\$PRESET_EMOJI_$PRESET"
     eval "TEXT=\$PRESET_TEXT_$PRESET"
